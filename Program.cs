@@ -8,6 +8,9 @@ using ApiAiSDK;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Net;
+using Newtonsoft.Json;
+using Telegram_bot;
 
 namespace Telegram_chat_bot
 {
@@ -47,7 +50,7 @@ namespace Telegram_chat_bot
 
             var word = new ListWords();
 
-            string Path_Id = @"C:.txt"; // Путь к записанному Id для игры
+            string Path_Id = @"C:.txt";                                // Путь к записанному Id для игры
             int Id_Pressing = e.CallbackQuery.From.Id;                 // Id участника, который нажмет "Хочу быть ведущим"
             string Check_Id = System.IO.File.ReadAllText(Path_Id);     // Чтение записанного Id
             int Right_Id = Convert.ToInt32(Check_Id);
@@ -167,35 +170,35 @@ namespace Telegram_chat_bot
             {
                 if (e.CallbackQuery.Data.Equals("Баланс"))
                 {
-                    string Balance = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=getBalance");
+                    string Balance = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getBalance"); // TODO: Поставить Ваш API-key
 
                     await botClient.SendTextMessageAsync(ChatId, Balance.Remove(0, 15) + " p. - доступный баланс");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Заказать номер"))
                 {
-                    string Order = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=getNumber&service=tg");
+                    string Order = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getNumber&service=tg");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Id заказа:Номер телефон \n{Order}\nВведи в чат Id своего заказа");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Кол-во доступных номеров"))
                 {
-                    var AccessNubmer = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=getNumbersStatus&country=0&service=tg");
+                    var AccessNubmer = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getNumbersStatus&country=0&service=tg");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Количество доступных номеров по России: {AccessNubmer}");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Статус заказа"))
                 {
-                    var Status = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=getStatus&id={Id}");
+                    var Status = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getStatus&id={Id}");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {Status}");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Цены"))
                 {
-                    var Cost = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=getPrices&service=tg&country=0");
+                    var Cost = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getPrices&service=tg&country=0");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Актуальна цена на оренду номера телеграм: {Cost}");
                 }
@@ -234,28 +237,28 @@ namespace Telegram_chat_bot
             {
                 if (e.CallbackQuery.Data.Equals("Cообщить о готовности номера"))
                 {
-                    var ReadyActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=setStatus&status=1&id={Id}");
+                    var ReadyActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=1&id={Id}");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Статус активации изменен: {ReadyActivate}");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Запросить еще один код"))
                 {
-                    var NewCode = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=setStatus&status=3&id={Id}");
+                    var NewCode = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=3&id={Id}");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Новый код: {NewCode}");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Завершить активацию"))
                 {
-                    var EndActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=setStatus&status=6&id={Id}");
+                    var EndActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=6&id={Id}");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {EndActivate}");
                 }
 
                 else if (e.CallbackQuery.Data.Equals("Отменить активацию"))
                 {
-                    var CancelOrder = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=59d39b6633A111d1f02b4561c475A02d&action=setStatus&status=8&id={Id}");
+                    var CancelOrder = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=8&id={Id}");
 
                     await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {CancelOrder}");
                 }
@@ -306,12 +309,12 @@ namespace Telegram_chat_bot
 
             var photo = new ChoosePhoto();
 
-            if (e.Message.Type == MessageType.Photo && ChatId == { Ваш Id })
+            if (e.Message.Type == MessageType.Photo && ChatId == 1382946157) // TODO: Потавить необходимый Id
             {
-                await botClient.SendPhotoAsync(chatId: { Id Чата}, photo: e.Message.Photo[e.Message.Photo.Count() - 1].FileId, caption: $"{e.Message.Caption}"); // Отправка файла в конкретный чат
+                await botClient.SendPhotoAsync(chatId: ChatId, photo: e.Message.Photo[e.Message.Photo.Count() - 1].FileId, caption: $"{e.Message.Caption}"); // Отправка файла в конкретный чат(конретный id чата)
             }
 
-            if (MessageText == "Заказ" && ChatId == UserId)
+            if (MessageText == "Заказ" && ChatId == UserId) // Взаимодействие с API sms-activate.ru
             {
                 var InlineOrder = new InlineKeyboardMarkup(new[]
                 {
@@ -373,6 +376,37 @@ namespace Telegram_chat_bot
 
             try
             {
+                if (MessageText.Substring(0, 6) == "Погода") // Взаимодействие с openweathermap.org чтобы узнать погоду
+                {
+                    string[] LastWord = MessageText.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries); // Разбиваем строку(сообщение) по словам
+
+                    string url = $"http://api.openweathermap.org/data/2.5/weather?q={LastWord[LastWord.Length-1]}&lang=ru&units=metric&appid=apikey"; // TODO: Api-key
+
+                    HttpWebRequest  Request  = (HttpWebRequest)WebRequest.Create(url);
+                    HttpWebResponse Response = (HttpWebResponse)Request.GetResponse();
+
+                    string Response_1;
+
+                    using (StreamReader streamReader = new StreamReader(Response.GetResponseStream()))
+                    {
+                        Response_1 = streamReader.ReadToEnd();
+                    }
+
+                    WeatherResponse weather = JsonConvert.DeserializeObject<WeatherResponse>(Response_1); // Десериализируем получаемый ответ в JSON формате
+                   
+                    var SunRise = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunrise).DateTime.ToLocalTime(); // Конвертация Unix time  
+                    var SunSet = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunset).DateTime.ToLocalTime();
+
+
+                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\n\n🌡 Погода в {weather.Name}: {weather.Main.Temp} °C\n\n" +
+                    $"💨 Скорость ветра: {weather.wind.speed} м/с\n\n☁️ Облачность: {weather.clouds.all} %\n\n💦 Влажность: {weather.Main.humidity} %\n\n🌅 Рассвет в {weather.Name} - {SunRise} (по МСК)\n\n🌇 Закат в {weather.Name} - {SunSet} (по МСК)", ParseMode.Markdown);
+
+                }
+            }
+            catch { }
+
+            try
+            {
                 var admin = botClient.GetChatMemberAsync(ChatId, UserId).Result; // Информация об одном из участников чата
 
                 if (MessageText == "Бан" && admin.CanDeleteMessages == true && ReplyMessage != null ||
@@ -424,7 +458,7 @@ namespace Telegram_chat_bot
                     await botClient.SendDiceAsync(ChatId, emoji: Emoji.Basketball, replyToMessageId: MessageId);
                 }
                 #region
-                if (UserId == 670333173 && ReplyMessage != null ||
+                if (admin.CanPromoteMembers == true && ReplyMessage != null ||
                     admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
                 {
                     switch (MessageText) // Управление правами администратора
@@ -453,20 +487,20 @@ namespace Telegram_chat_bot
                             await botClient.SendTextMessageAsync(ChatId, $"[{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь админ", parseMode: ParseMode.Markdown);
                             await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
                                    canRestrictMembers: true,
-                                   canDeleteMessages: true,
-                                   canChangeInfo: true,
-                                   canPinMessages: true,
-                                   canInviteUsers: true); break;
+                                   canDeleteMessages:  true,
+                                   canChangeInfo:      true,
+                                   canPinMessages:     true,
+                                   canInviteUsers:     true); break;
 
                         case "Забрать админку":
                             await botClient.SendTextMessageAsync(ChatId, $"У [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) забрали админку :(", parseMode: ParseMode.Markdown);
                             await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
                                    canRestrictMembers: false,
-                                   canDeleteMessages: false,
-                                   canChangeInfo: false,
-                                   canPinMessages: false,
-                                   canInviteUsers: false,
-                                   canPostMessages: false); break;
+                                   canDeleteMessages:  false,
+                                   canChangeInfo:      false,
+                                   canPinMessages:     false,
+                                   canInviteUsers:     false,
+                                   canPostMessages:    false); break;
                     }
                 }
             }
@@ -486,9 +520,9 @@ namespace Telegram_chat_bot
                     await botClient.SetChatPermissionsAsync(ChatId, permissions: Permissions_after_restrict); // Снятие ограничений
                 }
 
-                else if (ChatId == { Ваш Id })
+                else if (ChatId == 1382946157) // TODO: Поставить необходимый Id
                 {
-                    await botClient.SendTextMessageAsync(chatId: { Id чата}, MessageText);                // Написать от имени бота в конкретный чат
+                    await botClient.SendTextMessageAsync(ChatId, MessageText);                // Написать от имени бота в конкретный чат
                 }
 
                 else if (MessageText == "Фото")
@@ -496,10 +530,6 @@ namespace Telegram_chat_bot
                     await botClient.SendPhotoAsync(ChatId, photo.SavePhoto(), replyToMessageId: MessageId);   // Отправка случайного фото
                 }
 
-                else if (e.Message.Type == MessageType.Photo && ChatId == UserId)
-                {
-                    await botClient.ForwardMessageAsync(chatId: { Ваш Id }, fromChatId: UserId, e.Message.MessageId);    // Если пользователь отправил фото в лс боту, бот пересывает сообщение в конкретный чат
-                }
             }
             catch { }
 
@@ -507,10 +537,10 @@ namespace Telegram_chat_bot
             {
                 if (MessageText == "!админ" && ReplyMessage != null)    // Отправка жалобы на сообщение админу в лс
                 {
-                    await botClient.SendTextMessageAsync(chatId: 670333173, $"[{FirstName}](tg://user?id={UserId})" +
+                    await botClient.SendTextMessageAsync(chatId: 1382946157, $"[{FirstName}](tg://user?id={UserId})" +
                         $" пожаловался на сообщение: *''{e.Message.ReplyToMessage.Text}''*\n" +
                         $" участника: [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id})",
-                        parseMode: ParseMode.Markdown);
+                        parseMode: ParseMode.Markdown); // TODO: Id админа
                 }
             }
             catch { }
