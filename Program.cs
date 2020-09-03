@@ -22,7 +22,7 @@ namespace Telegram_chat_bot
 
         static void Main(string[] args)
         {
-            botClient = new TelegramBotClient("") { Timeout = TimeSpan.FromSeconds(10) }; // вводим токен бота
+            botClient = new TelegramBotClient("1238720093:AAGnXaAEFdYYGosivih1D-QCfuZYwqV27Dw") { Timeout = TimeSpan.FromSeconds(10) }; // вводим токен бота
             AIConfiguration configAi_for_pm = new AIConfiguration("", SupportedLanguage.Russian);     // ключ из DialogFlow (для общения в ЛС)
             AIConfiguration configAi_for_chat = new AIConfiguration("", SupportedLanguage.Russian);   // ключ из DialogFlow (для общения в чате)
 
@@ -397,9 +397,16 @@ namespace Telegram_chat_bot
                     var SunRise = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunrise).DateTime.ToLocalTime(); // Конвертация Unix time  
                     var SunSet = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunset).DateTime.ToLocalTime();
 
+                    string comment = (weather.Main.Temp < 16 && weather.Main.Temp > 0) ? ", уффф прохладно как-то" :
+                       ((weather.Main.Temp < 0) ? ", ой холодно как...одевайся теплее :)" : ", хорошая погодка :)");
 
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\n\n🌡 Погода в {weather.Name}: {weather.Main.Temp} °C\n\n" +
-                    $"💨 Скорость ветра: {weather.wind.speed} м/с\n\n☁️ Облачность: {weather.clouds.all} %\n\n💦 Влажность: {weather.Main.humidity} %\n\n🌅 Рассвет в {weather.Name} - {SunRise} (по МСК)\n\n🌇 Закат в {weather.Name} - {SunSet} (по МСК)", ParseMode.Markdown);
+                    string comment_1 = (weather.sys.humidity < 30) ? ", суховато..." :
+                        ((weather.sys.humidity > 30 && weather.sys.humidity < 80) ? ", смотри не подскользнись😂" : ", слииишком влажно");
+
+                    string comment_2 = weather.clouds.all > 70 ? ", походу скоро дождик" : ", наслаждайся солнцем)";
+
+                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\n\n🌡 Погода в {weather.Name}: {weather.Main.Temp} °C,{comment}\n\n" +
+                    $"💨 Скорость ветра: {weather.wind.speed} м/с\n\n☁️ Облачность: {weather.clouds.all} % {comment_2}\n\n💦 Влажность: {weather.Main.humidity} % {comment_1}\n\n🌅 Рассвет в {weather.Name} - {SunRise} (по МСК)\n\n🌇 Закат в {weather.Name} - {SunSet} (по МСК)", ParseMode.Markdown);
 
                 }
             }
