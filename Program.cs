@@ -22,7 +22,7 @@ namespace Telegram_chat_bot
 
         static void Main(string[] args)
         {
-            botClient = new TelegramBotClient("1238720093:AAGnXaAEFdYYGosivih1D-QCfuZYwqV27Dw") { Timeout = TimeSpan.FromSeconds(10) }; // вводим токен бота
+            botClient = new TelegramBotClient("") { Timeout = TimeSpan.FromSeconds(10) }; // вводим токен бота
             AIConfiguration configAi_for_pm = new AIConfiguration("", SupportedLanguage.Russian);     // ключ из DialogFlow (для общения в ЛС)
             AIConfiguration configAi_for_chat = new AIConfiguration("", SupportedLanguage.Russian);   // ключ из DialogFlow (для общения в чате)
 
@@ -163,6 +163,28 @@ namespace Telegram_chat_bot
                     await botClient.EditMessageReplyMarkupAsync(ChatId, MessageId, null);
                     await botClient.EditMessageTextAsync(ChatId, MessageId, "Игра начата!"); // Начало новой игры
                 }
+
+            }
+            catch { }
+
+            try {
+
+                if (e.CallbackQuery.Data == ("Для админов"))
+                {
+                    using (var AdminFile = new StreamReader(@"\админы.txt"))
+                    {
+                        await botClient.SendTextMessageAsync(ChatId, $"{AdminFile.ReadToEnd()}");
+                    }
+                }
+
+                else if (e.CallbackQuery.Data == ("Для участников"))
+                {
+                    using (var UserFile = new StreamReader(@"\юзеры.txt"))
+                    {
+                        await botClient.SendTextMessageAsync(ChatId, $"{UserFile.ReadToEnd()}");
+                    }
+                }
+
             }
             catch { }
 
@@ -464,7 +486,7 @@ namespace Telegram_chat_bot
                 {
                     await botClient.SendDiceAsync(ChatId, emoji: Emoji.Basketball, replyToMessageId: MessageId);
                 }
-                #region
+                #region Give admin
                 if (admin.CanPromoteMembers == true && ReplyMessage != null ||
                     admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
                 {
@@ -542,6 +564,8 @@ namespace Telegram_chat_bot
 
             try
             {
+                var admin = botClient.GetChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id).Result; // инфорамация про участника, которому был реплай
+
                 if (MessageText == "!админ" && ReplyMessage != null)    // Отправка жалобы на сообщение админу в лс
                 {
                     await botClient.SendTextMessageAsync(chatId: 1382946157, $"[{FirstName}](tg://user?id={UserId})" +
@@ -549,18 +573,43 @@ namespace Telegram_chat_bot
                         $" участника: [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id})",
                         parseMode: ParseMode.Markdown); // TODO: Id админа
                 }
+
+                else if (MessageText == "Права" && ReplyMessage != null && admin.Status == ChatMemberStatus.Administrator) // Проверять права администраторов
+                {
+
+                    await botClient.SendTextMessageAsync(ChatId, $"*{admin.Status}* [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) может:" +
+                        $"\nУдалять сообщения: *{admin.CanDeleteMessages}*" +
+                        $"\nЗакреплять сообщения: *{admin.CanPinMessages}*" +
+                        $"\nДобавлять администрацию: *{admin.CanPromoteMembers}*" +
+                        $"\nОграничивать пользователей: *{admin.CanRestrictMembers}*" +
+                        $"\nИзменять описание группы: *{admin.CanChangeInfo}*" +
+                        $"\nПриглашать людей: *{admin.CanInviteUsers}*", parseMode: ParseMode.Markdown);
+                }
+
+                if (MessageText.Substring(0, 2) == ".н" && admin.CanPromoteMembers == true && ReplyMessage != null ||
+                    MessageText.Substring(0, 2) == ".н" && admin.Status == ChatMemberStatus.Creator && ReplyMessage != null) // Метод для выдачи надписи участнику( так жедает админ права к пригласительной ссылке)
+                {
+
+                    await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id, canInviteUsers: true);
+                    await botClient.SetChatAdministratorCustomTitleAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id, $"{MessageText.Remove(0, 2)}");
+                    await botClient.SendTextMessageAsync(ChatId, $"Теперь [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) *{MessageText.Remove(0, 2)}*", parseMode: ParseMode.Markdown);
+
+                }
+
             }
             catch { }
 
-            if (MessageText == "/") // Игра "крокодил"
-            {
-                using (StreamWriter Record_Id = new StreamWriter(Path_Id, false, System.Text.Encoding.UTF8))
-                {
-                    Record_Id.WriteLine(Line_Id);
-                }
+            try {
 
-                var inline = new InlineKeyboardMarkup(new[]
+                if (MessageText == "/") // Игра "крокодил"
                 {
+                    using (StreamWriter Record_Id = new StreamWriter(Path_Id, false, System.Text.Encoding.UTF8))
+                    {
+                        Record_Id.WriteLine(Line_Id);
+                    }
+
+                    var inline = new InlineKeyboardMarkup(new[]
+                    {
                     new[]
                     {
                         InlineKeyboardButton.WithCallbackData("Первое слово")
@@ -571,9 +620,27 @@ namespace Telegram_chat_bot
                        InlineKeyboardButton.WithCallbackData("Завершить игру")
                     }
                 }); // создание трех кнопок(три строки)
-                await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}), твой черед объяснять слово", parseMode: ParseMode.Markdown, replyMarkup: inline);
-            }
+                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}), твой черед объяснять слово", parseMode: ParseMode.Markdown, replyMarkup: inline);
+                }
 
+                else if (MessageText == "/") // Инструкция к боту
+                {
+                    var choose = new InlineKeyboardMarkup(new[]
+                    {
+                    new[]
+                        {
+                            InlineKeyboardButton.WithCallbackData("Для админов")
+                        },
+                     new[]{
+                            InlineKeyboardButton.WithCallbackData("Для участников")
+                          }
+                    });
+
+                    await botClient.SendTextMessageAsync(ChatId, "Инструкция:", replyMarkup: choose);
+                }
+
+            } catch { }
+            
             try
             {
                 if (e.Message.Type == MessageType.Text)                    //проверка триггеров для общения в ЛС
