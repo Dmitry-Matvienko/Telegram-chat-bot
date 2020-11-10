@@ -331,6 +331,36 @@ namespace Telegram_chat_bot
 
             var photo = new ChoosePhoto();
 
+            try
+            {
+                if (e.Message != null)
+                {
+                using (var countMessage = new DataBaseBot())
+                {
+                    var NewUser = new CountMessage()
+                    {
+                        FirstName = FirstName,
+                        UserId = UserId,
+                        Counter = 1
+                    };
+
+                    try
+                    {
+                        // Проверяем есть ли пользователь в бд
+                        var checkUser = countMessage.countMessages.Single(x => x.UserId == NewUser.UserId);
+                        checkUser.Counter += 1;
+                        countMessage.SaveChanges();
+                    }
+
+                    catch (InvalidOperationException)
+                    {
+                        // Добавляем нового пользователя
+                        countMessage.countMessages.Add(NewUser);
+                        countMessage.SaveChanges();
+                    }
+                }
+                }
+
             if (e.Message.Type == MessageType.Photo && ChatId == 1382946157) // TODO: Потавить необходимый Id
             {
                 await botClient.SendPhotoAsync(chatId: ChatId, photo: e.Message.Photo[e.Message.Photo.Count() - 1].FileId, caption: $"{e.Message.Caption}"); // Отправка файла в конкретный чат(конретный id чата)
@@ -378,8 +408,6 @@ namespace Telegram_chat_bot
                 await botClient.SendTextMessageAsync(ChatId, $"Заказ с Id {IdOrder} запомнил");
             }
 
-            try
-            {
                 if (e.Message.Type == MessageType.ChatMembersAdded)
                 {
                     await botClient.SendTextMessageAsync(ChatId,
@@ -433,6 +461,44 @@ namespace Telegram_chat_bot
                 }
             }
             catch { }
+
+            try {
+
+                if (MessageText == "+" && ReplyMessage != null && ReplyMessage.From.Id != UserId ||
+                   MessageText.Contains("спасибо", StringComparison.CurrentCultureIgnoreCase) && ReplyMessage != null && ReplyMessage.From.Id != UserId)
+                {
+                    using (var Rating = new DataBaseBot())
+                    {
+                        var NewRating = new Rate()
+                        {
+                            FirstName = ReplyMessage.From.FirstName,
+                            UserId = ReplyMessage.From.Id,
+                            rate = 1,
+                        };
+                        try
+                        {
+                            // Проверка пользователя в бд, которому ответили
+                            var checkRate = Rating.Rates.Single(x => x.UserId == NewRating.UserId);
+                            checkRate.rate += 1;
+                            Rating.SaveChanges();
+
+                            await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\nувеличил рейтинг\n[{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id}) *{checkRate.rate}* 🆙", parseMode: ParseMode.Markdown);
+                        }
+
+                        catch (InvalidOperationException)
+                        {
+                            // Если пользователь не найден, добавляем его в бд и даем 1 рейтинга
+                            Rating.Rates.Add(NewRating);
+                            Rating.SaveChanges();
+
+                            await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\nувеличил рейтинг\n[{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id}) *1* 🆙", parseMode: ParseMode.Markdown);
+
+                        }
+                    }
+
+                }
+
+            } catch { }
 
             try
             {
