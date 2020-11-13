@@ -13,5 +13,6 @@ namespace Telegram_bot
 
         public DbSet<Rate> Rates{ get; set; }
         public DbSet<CountMessage> countMessages{ get; set; }
+        public DbSet<SecretWords> secretWords { get; set; }
     }
 }

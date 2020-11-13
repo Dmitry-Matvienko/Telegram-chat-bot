@@ -397,7 +397,49 @@ namespace Telegram_chat_bot
                 await botClient.SendTextMessageAsync(ChatId, "Выбери одну из следующих операций:", replyMarkup: InlineOrder);
             }
 
-            if (int.TryParse(MessageText, out int IdOrder) && MessageText.Length >= 9 &&
+                if (e.Message.Type == MessageType.Text)
+                {
+                    // группа "секретных слов". Проверяем входное входное сообщение на наличие соответствий с базой данных
+
+                    using (var SecretWords = new DataBaseBot())
+                    {
+                        var secret = new SecretWords()
+                        {
+                            words = MessageText
+                        };
+
+                        var rating = new Rate()
+                        {
+                            _FirstName = FirstName,
+                            UserId = UserId,
+                        };
+
+                        String[] DropString = secret.words.Split(new char[] { ' ', '?', '!', '.', ',' }, StringSplitOptions.RemoveEmptyEntries); // Удаляем все ненужные элементы в строке
+
+                        foreach (var UserString in DropString)
+                        {
+                            try
+                            {
+                                string CaseWord = SecretWords.secretWords.FirstOrDefault(x => x.words == UserString).ToString(); // Возвращаем первое подходящее слово из списка
+                                var LastSecretWord = SecretWords.secretWords.FirstOrDefault(x => x.words == UserString); // Берем тоже слово для дальнейшего удаления из бд
+                                var AddRate = SecretWords.Rates.Single(x => x.UserId == rating.UserId);
+                                var RandRate = new Random();
+                                int value = RandRate.Next(3, 19);
+                                int LastValue = AddRate.rate + value; // Добавляем рейтинг к пользователю, который нашел слово
+                                AddRate.rate = LastValue;
+                                SecretWords.SaveChanges();
+                                await botClient.SendTextMessageAsync(ChatId, $"Поздравляю, [{FirstName}](tg://user?id={UserId}), ты нашел тайное слово и получил *{value}* 🆙 рейтинга\nПродолжай общаться и получай больше рейтинга!", parseMode: ParseMode.Markdown);
+                                SecretWords.secretWords.Remove(LastSecretWord);
+                                SecretWords.SaveChanges();
+                                break;
+                            }
+                            catch { }
+                        }
+
+                    }
+                }
+
+                if (int.TryParse(MessageText, out int IdOrder) && MessageText.Length >= 9 &&
                 ChatId == UserId)
             {
                 string Path_to_id = @"D:\.txt"; // файл c номером заказа
@@ -471,7 +513,7 @@ namespace Telegram_chat_bot
                     {
                         var NewRating = new Rate()
                         {
-                            FirstName = ReplyMessage.From.FirstName,
+                            _FirstName = ReplyMessage.From.FirstName,
                             UserId = ReplyMessage.From.Id,
                             rate = 1,
                         };
@@ -496,6 +538,28 @@ namespace Telegram_chat_bot
                         }
                     }
 
+                }
+
+                if (ChatId == 1382946157 && MessageText.Substring(0, 9) == "Добавить:") // TODO: поставить свой id
+                {
+                    // Добавляем новые слова в бд для таблицы "секретных слов"
+                    var DeleteFirstWord = MessageText.Remove(0, 9);
+                    String[] DropString = DeleteFirstWord.Split(new char[] { ' ', ',', '|' }, StringSplitOptions.RemoveEmptyEntries); // Удалить все ненужные элементы во вхождной строке
+
+                    using (var AddsecretWords = new DataBaseBot())
+                    {
+
+                        foreach (var ScrollWords in DropString)
+                        {
+                            var secret = new SecretWords()
+                            {
+                                words = ScrollWords
+                            };
+                            AddsecretWords.secretWords.Add(secret);
+                            AddsecretWords.SaveChanges();
+                            await botClient.SendTextMessageAsync(ChatId, ScrollWords);
+                        }
+                    }
                 }
 
             } catch { }
