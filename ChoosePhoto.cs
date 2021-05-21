@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace Telegram_chat_bot
+namespace Telegram_bot
 {
     class ChoosePhoto
     {
@@ -16,9 +16,9 @@ namespace Telegram_chat_bot
 
             List<Stream> list = new List<Stream>()
                     {
-                        {Photo1 },
-                        {Photo2 },
-                        {Photo3 },
+                        {Photo1},
+                        {Photo2},
+                        {Photo3},
                         {Photo4},
                     };
 

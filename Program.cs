@@ -1,6 +1,5 @@
 ﻿using System;
 using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -8,19 +7,17 @@ using ApiAiSDK;
 using System.IO;
 using System.Text;
 using System.Linq;
-using System.Net;
-using Newtonsoft.Json;
-using Telegram_bot;
+using System.Threading.Tasks;
 
-namespace Telegram_chat_bot
+namespace Telegram_bot
 {
     class Program
     {
-        private static ITelegramBotClient botClient;
+        public static ITelegramBotClient botClient;
         private static ApiAi apiAi_for_pm;   // объявление переменной для общения в ЛС с ботом с помощью DialogFlow
         private static ApiAi apiAi_for_chat; // объявление переменной для общения в чате с ботом с помощью DialogFlow
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             botClient = new TelegramBotClient("") { Timeout = TimeSpan.FromSeconds(10) }; // вводим токен бота
             AIConfiguration configAi_for_pm = new AIConfiguration("", SupportedLanguage.Russian);     // ключ из DialogFlow (для общения в ЛС)
@@ -29,8 +26,25 @@ namespace Telegram_chat_bot
             apiAi_for_pm = new ApiAi(configAi_for_pm);
             apiAi_for_chat = new ApiAi(configAi_for_chat);
 
-            var Bot = botClient.GetMeAsync().Result;
+            var Bot = await botClient.GetMeAsync();
             Console.WriteLine($"Имя бота: {Bot.FirstName}; Id бота {Bot.Id} ");
+            
+            botClient.OnMessage += ChatAction.ChatActions.WelcomesAndChanges;
+            botClient.OnMessage += ForAdmins.GroupAdministrations.UserControl;
+            botClient.OnCallbackQuery += OrderPhoneNumber.Order.OrderPhone;
+            botClient.OnMessage += Reports.ReportForAdmins.SendReport;
+            botClient.OnMessage += RestrictMedia.Restrict.RestrictsMedia;
+            botClient.OnMessage += Weather.TakeWeather.FindWeather;
+
+            botClient.OnCallbackQuery += RollGame.RollGames.RollButtons;
+            botClient.OnMessage += RollGame.RollGames.StartEvent;
+
+            botClient.OnCallbackQuery += Crocodile.CrocodileGame.CrocoButtons;
+            botClient.OnMessage += Crocodile.CrocodileGame.StartGame;
+
+            botClient.OnMessage += MessagesAndRating.Messages.TextMessages;
+            botClient.OnMessage += MessagesAndRating.Rate.Rating;
+
 
             botClient.OnMessage += BotOnMessageReceived;
             botClient.OnCallbackQuery += BotClient_OnCallbackQuery;
@@ -42,136 +56,13 @@ namespace Telegram_chat_bot
 
         private static async void BotClient_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
         {
-
-            string Name   = $"{e.CallbackQuery.From.FirstName}"; // Имя того кто нажал на кнопку
             long ChatId   = e.CallbackQuery.Message.Chat.Id;     // Id чата
-            var MessageId = e.CallbackQuery.Message.MessageId;   // Id сообщения
-            var UserId    = e.CallbackQuery.From.Id;             // Id участника чата
 
-            var word = new ListWords();
-
-            string Path_Id = @"C:.txt";                                // Путь к записанному Id для игры
-            int Id_Pressing = e.CallbackQuery.From.Id;                 // Id участника, который нажмет "Хочу быть ведущим"
-            string Check_Id = System.IO.File.ReadAllText(Path_Id);     // Чтение записанного Id
-            int Right_Id = Convert.ToInt32(Check_Id);
-
-            string WritePath = @"D:.txt";                  // Путь к записанному Id для заказа номера
-            string Id = System.IO.File.ReadAllText(WritePath);
-
-            var SmsActivate = new System.Net.WebClient();
-
-            try
+            try 
             {
-                if (e.CallbackQuery.Data.Equals("Первое слово") && UserId == Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, word.ReturnWord(), showAlert: true); // Возвращаем случайное слово из .txt
-
-                    var InlineAfter_StartWord = new InlineKeyboardMarkup(new[]
-                    {
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Слово")
-                        },
-
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Поменять слово")
-                        },
-
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Завершить игру")
-                        }
-                    }); // Создаем три новые Inline кнопки
-
-                    await botClient.EditMessageReplyMarkupAsync(ChatId, MessageId, replyMarkup: InlineAfter_StartWord);
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Первое слово") && UserId != Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "Ты не ведущий!", showAlert: true);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Завершить игру") && UserId == Right_Id)
-                {
-                    await botClient.EditMessageReplyMarkupAsync(ChatId, MessageId, null); // Удаляем inline клавиатуру
-                    await botClient.EditMessageTextAsync(ChatId, MessageId,
-                    $"[{Name}](tg://user?id={UserId}) завершил игру", ParseMode.Markdown); // Меняем текст сообщения
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Завершить игру") && UserId != Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "Ты не ведущий!", showAlert: true);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Слово") && UserId == Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, word.SaveReturnWord(), showAlert: true); // Возвращаем сохраненное слово 
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Слово") && UserId != Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "Ты не ведущий!", showAlert: true);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Поменять слово") && UserId == Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, word.ReturnWord(), showAlert: true);
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Поменять слово") && UserId != Right_Id)
-                {
-                    await botClient.AnswerCallbackQueryAsync(e.CallbackQuery.Id, "Ты не ведущий!", showAlert: true);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Хочу быть ведущим"))
-                {
-                    using (StreamWriter Record = new StreamWriter(Path_Id, false, System.Text.Encoding.UTF8))
-                    {
-                        Record.WriteLine(Id_Pressing); // Записываем Id того кто нажал в .txt файл для игры
-                    }
-
-                    var InlineAfter = new InlineKeyboardMarkup(new[]
-                    {
-                    new[]
-                    {
-                        InlineKeyboardButton.WithCallbackData("Первое слово")
-                    },
-                    new[]
-                    {
-                       InlineKeyboardButton.WithCallbackData("Завершить игру")
-                    }
-                    });
-                    await botClient.SendTextMessageAsync(ChatId,
-                    $"[{Name}](tg://user?id={UserId}), твой черед объяснять слово", parseMode: ParseMode.Markdown, replyMarkup: InlineAfter);
-                    await botClient.EditMessageReplyMarkupAsync(ChatId, MessageId, null);
-                    await botClient.EditMessageTextAsync(ChatId, MessageId, "Игра начата!"); // Начало новой игры
-                }
-
-            }
-            catch { }
-
-            try {
-
                 if (e.CallbackQuery.Data == ("Для админов"))
                 {
-                    using (var AdminFile = new StreamReader(@"\админы.txt"))
+                    using (var AdminFile = new StreamReader(@"admins.txt"))
                     {
                         await botClient.SendTextMessageAsync(ChatId, $"{AdminFile.ReadToEnd()}");
                     }
@@ -179,114 +70,13 @@ namespace Telegram_chat_bot
 
                 else if (e.CallbackQuery.Data == ("Для участников"))
                 {
-                    using (var UserFile = new StreamReader(@"\юзеры.txt"))
+                    using (var UserFile = new StreamReader(@"users.txt"))
                     {
                         await botClient.SendTextMessageAsync(ChatId, $"{UserFile.ReadToEnd()}");
                     }
                 }
-
             }
             catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Баланс"))
-                {
-                    string Balance = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getBalance"); // TODO: Поставить Ваш API-key
-
-                    await botClient.SendTextMessageAsync(ChatId, Balance.Remove(0, 15) + " p. - доступный баланс");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Заказать номер"))
-                {
-                    string Order = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getNumber&service=tg");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Id заказа:Номер телефон \n{Order}\nВведи в чат Id своего заказа");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Кол-во доступных номеров"))
-                {
-                    var AccessNubmer = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getNumbersStatus&country=0&service=tg");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Количество доступных номеров по России: {AccessNubmer}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Статус заказа"))
-                {
-                    var Status = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getStatus&id={Id}");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {Status}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Цены"))
-                {
-                    var Cost = SmsActivate.DownloadString("https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=getPrices&service=tg&country=0");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Актуальна цена на оренду номера телеграм: {Cost}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Изменить статус"))
-                {
-                    var InlineStatus = new InlineKeyboardMarkup(new[]
-                    {
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Cообщить о готовности номера")
-                        },
-
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Запросить еще один код")
-                        },
-
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Завершить активацию")
-                        },
-
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Отменить активацию")
-                        }
-                    }); // Новая Inline клавиатура для изменения статуса заказа
-
-                    await botClient.SendTextMessageAsync(ChatId, "Выбери статус номера ", replyMarkup: InlineStatus);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (e.CallbackQuery.Data.Equals("Cообщить о готовности номера"))
-                {
-                    var ReadyActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=1&id={Id}");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Статус активации изменен: {ReadyActivate}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Запросить еще один код"))
-                {
-                    var NewCode = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=3&id={Id}");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Новый код: {NewCode}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Завершить активацию"))
-                {
-                    var EndActivate = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=6&id={Id}");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {EndActivate}");
-                }
-
-                else if (e.CallbackQuery.Data.Equals("Отменить активацию"))
-                {
-                    var CancelOrder = SmsActivate.DownloadString($"https://sms-activate.ru/stubs/handler_api.php?api_key=$api_key&action=setStatus&status=8&id={Id}");
-
-                    await botClient.SendTextMessageAsync(ChatId, $"Статус активации: {CancelOrder}");
-                }
-            }
-            catch { }
-
         }
 
         private static async void BotOnMessageReceived(object sender, MessageEventArgs e)
@@ -303,73 +93,18 @@ namespace Telegram_chat_bot
             int MessageId      = e.Message.MessageId;      // Id сообщения
             string FirstName   = e.Message.From.FirstName; // Ник участника чата
 
-            ChatPermissions chatPermissions = new ChatPermissions(); // Переменная для действия "Мут"
-
-            ChatPermissions Permissions_during_restrict = new ChatPermissions
-            {
-                CanInviteUsers       = false,
-                CanSendMediaMessages = false,
-                CanPinMessages       = false,
-                CanSendMessages      = true,
-                CanSendOtherMessages = true
-            };
-            ChatPermissions Permissions_after_restrict = new ChatPermissions
-            {
-                CanSendMediaMessages = true,
-                CanInviteUsers       = true,
-                CanSendOtherMessages = true,
-                CanSendMessages      = true
-            };
-
-            Stream VideoFile = System.IO.File.OpenRead(@"C:.mp4");
-
-            string Path_Id = @"C:\record.txt"; // .txt файл для записи Id для игры(файл должен быть с кодировкой UTF-8)
-            int Line_Id = e.Message.From.Id;                           // Id того кто начнет игру
-            string Check_Id = System.IO.File.ReadAllText(Path_Id);     // Просматриваем Id который записан в файле
-            int Right_Id = Convert.ToInt32(Check_Id);
-            ListWords RightWord = new ListWords();                     // Правильное слово из списка для игры
-
             var photo = new ChoosePhoto();
 
             try
             {
-                if (e.Message != null)
+                if (MessageText == "/start" && ChatId == UserId)
                 {
-                using (var countMessage = new DataBaseBot())
-                {
-                    var NewUser = new CountMessage()
-                    {
-                        FirstName = FirstName,
-                        UserId = UserId,
-                        Counter = 1
-                    };
-
-                    try
-                    {
-                        // Проверяем есть ли пользователь в бд
-                        var checkUser = countMessage.countMessages.Single(x => x.UserId == NewUser.UserId);
-                        checkUser.Counter += 1;
-                        countMessage.SaveChanges();
-                    }
-
-                    catch (InvalidOperationException)
-                    {
-                        // Добавляем нового пользователя
-                        countMessage.countMessages.Add(NewUser);
-                        countMessage.SaveChanges();
-                    }
+                    await botClient.SendTextMessageAsync(chatId: e.Message.Chat,"Приветствую тебя. Хочешь поговорить со мной? :)").ConfigureAwait(false);
                 }
-                }
-
-            if (e.Message.Type == MessageType.Photo && ChatId == 1382946157) // TODO: Потавить необходимый Id
-            {
-                await botClient.SendPhotoAsync(chatId: ChatId, photo: e.Message.Photo[e.Message.Photo.Count() - 1].FileId, caption: $"{e.Message.Caption}"); // Отправка файла в конкретный чат(конретный id чата)
-            }
-
-            if (MessageText == "Заказ" && ChatId == UserId) // Взаимодействие с API sms-activate.ru
-            {
-                var InlineOrder = new InlineKeyboardMarkup(new[]
+                if (MessageText == "Заказ" && ChatId == UserId) // Взаимодействие с API sms-activate.ru
                 {
+                    var InlineOrder = new InlineKeyboardMarkup(new[]
+                    {
                     new[]
                     {
                         InlineKeyboardButton.WithCallbackData("Баланс"),
@@ -394,294 +129,59 @@ namespace Telegram_chat_bot
 
                 }); // Inline клавиатура для выполнения заказа номера
 
-                await botClient.SendTextMessageAsync(ChatId, "Выбери одну из следующих операций:", replyMarkup: InlineOrder);
-            }
+                    await botClient.SendTextMessageAsync(ChatId, "Выбери одну из следующих операций:", replyMarkup: InlineOrder);
+                }
 
-                if (e.Message.Type == MessageType.Text)
+                if (int.TryParse(MessageText, out int IdOrder) && MessageText.Length >= 9 && ChatId == UserId)
                 {
-                    // группа "секретных слов". Проверяем входное входное сообщение на наличие соответствий с базой данных
-
-                    using (var SecretWords = new DataBaseBot())
+                    string Path_to_id = @"id.txt"; // файл c номером заказа
+                    using (StreamWriter Id = new StreamWriter(Path_to_id, false, Encoding.UTF8))
                     {
-                        var secret = new SecretWords()
-                        {
-                            words = MessageText
-                        };
-
-                        var rating = new Rate()
-                        {
-                            _FirstName = FirstName,
-                            UserId = UserId,
-                        };
-
-                        String[] DropString = secret.words.Split(new char[] { ' ', '?', '!', '.', ',' }, StringSplitOptions.RemoveEmptyEntries); // Удаляем все ненужные элементы в строке
-
-                        foreach (var UserString in DropString)
-                        {
-                            try
-                            {
-                                string CaseWord = SecretWords.secretWords.FirstOrDefault(x => x.words == UserString).ToString(); // Возвращаем первое подходящее слово из списка
-                                var LastSecretWord = SecretWords.secretWords.FirstOrDefault(x => x.words == UserString); // Берем тоже слово для дальнейшего удаления из бд
-                                var AddRate = SecretWords.Rates.Single(x => x.UserId == rating.UserId);
-                                var RandRate = new Random();
-                                int value = RandRate.Next(3, 19);
-                                int LastValue = AddRate.rate + value; // Добавляем рейтинг к пользователю, который нашел слово
-                                AddRate.rate = LastValue;
-                                SecretWords.SaveChanges();
-                                await botClient.SendTextMessageAsync(ChatId, $"Поздравляю, [{FirstName}](tg://user?id={UserId}), ты нашел тайное слово и получил *{value}* 🆙 рейтинга\nПродолжай общаться и получай больше рейтинга!", parseMode: ParseMode.Markdown);
-                                SecretWords.secretWords.Remove(LastSecretWord);
-                                SecretWords.SaveChanges();
-                                break;
-                            }
-                            catch { }
-                        }
-
+                        Id.WriteLine(IdOrder);
                     }
+                    await botClient.SendTextMessageAsync(ChatId, $"Заказ с Id {IdOrder} запомнил");
                 }
 
-                if (int.TryParse(MessageText, out int IdOrder) && MessageText.Length >= 9 &&
-                ChatId == UserId)
-            {
-                string Path_to_id = @"D:\.txt"; // файл c номером заказа
-                using (StreamWriter Id = new StreamWriter(Path_to_id, false, Encoding.UTF8))
-                {
-                    Id.WriteLine(IdOrder);
-                }
-                await botClient.SendTextMessageAsync(ChatId, $"Заказ с Id {IdOrder} запомнил");
-            }
 
-                if (e.Message.Type == MessageType.ChatMembersAdded)
-                {
-                    await botClient.SendTextMessageAsync(ChatId,
-                    $"[{e.Message.NewChatMembers[0].FirstName}](tg://user?id={e.Message.NewChatMembers[0].Id}), приветствуем тебя в {e.Message.Chat.Title} чате!" +
-                    $"\n❗️Заметил(а) нарушение?\nНапиши в чате - !админ❗️", parseMode: ParseMode.Markdown, replyToMessageId: MessageId);
-
-                }
-
-                else if (e.Message.Type == MessageType.ChatMemberLeft)
-                {
-                    await botClient.SendTextMessageAsync(ChatId,
-                    $" Еще один - [{e.Message.LeftChatMember.FirstName}](tg://user?id={e.Message.LeftChatMember.Id}) слился", parseMode: ParseMode.Markdown);
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (MessageText.Substring(0, 6) == "Погода") // Взаимодействие с openweathermap.org чтобы узнать погоду
-                {
-                    string[] LastWord = MessageText.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries); // Разбиваем строку(сообщение) по словам
-
-                    string url = $"http://api.openweathermap.org/data/2.5/weather?q={LastWord[LastWord.Length-1]}&lang=ru&units=metric&appid=apikey"; // TODO: Api-key
-
-                    HttpWebRequest  Request  = (HttpWebRequest)WebRequest.Create(url);
-                    HttpWebResponse Response = (HttpWebResponse)Request.GetResponse();
-
-                    string Response_1;
-
-                    using (StreamReader streamReader = new StreamReader(Response.GetResponseStream()))
-                    {
-                        Response_1 = streamReader.ReadToEnd();
-                    }
-
-                    WeatherResponse weather = JsonConvert.DeserializeObject<WeatherResponse>(Response_1); // Десериализируем получаемый ответ в JSON формате
-                   
-                    var SunRise = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunrise).DateTime.ToLocalTime(); // Конвертация Unix time  
-                    var SunSet = DateTimeOffset.FromUnixTimeSeconds(weather.sys.sunset).DateTime.ToLocalTime();
-
-                    string comment = (weather.Main.Temp < 16 && weather.Main.Temp > 0) ? ", уффф прохладно как-то" :
-                       ((weather.Main.Temp < 0) ? ", ой холодно как...одевайся теплее :)" : ", хорошая погодка :)");
-
-                    string comment_1 = (weather.sys.humidity < 30) ? ", суховато..." :
-                        ((weather.sys.humidity > 30 && weather.sys.humidity < 80) ? ", смотри не подскользнись😂" : ", слииишком влажно");
-
-                    string comment_2 = weather.clouds.all > 70 ? ", походу скоро дождик" : ", наслаждайся солнцем)";
-
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\n\n🌡 Погода в {weather.Name}: {weather.Main.Temp} °C,{comment}\n\n" +
-                    $"💨 Скорость ветра: {weather.wind.speed} м/с\n\n☁️ Облачность: {weather.clouds.all} % {comment_2}\n\n💦 Влажность: {weather.Main.humidity} % {comment_1}\n\n🌅 Рассвет в {weather.Name} - {SunRise} (по МСК)\n\n🌇 Закат в {weather.Name} - {SunSet} (по МСК)", ParseMode.Markdown);
-
-                }
-            }
-            catch { }
-
-            try {
-
-                if (MessageText == "+" && ReplyMessage != null && ReplyMessage.From.Id != UserId ||
-                   MessageText.Contains("спасибо", StringComparison.CurrentCultureIgnoreCase) && ReplyMessage != null && ReplyMessage.From.Id != UserId)
-                {
-                    using (var Rating = new DataBaseBot())
-                    {
-                        var NewRating = new Rate()
-                        {
-                            _FirstName = ReplyMessage.From.FirstName,
-                            UserId = ReplyMessage.From.Id,
-                            rate = 1,
-                        };
-                        try
-                        {
-                            // Проверка пользователя в бд, которому ответили
-                            var checkRate = Rating.Rates.Single(x => x.UserId == NewRating.UserId);
-                            checkRate.rate += 1;
-                            Rating.SaveChanges();
-
-                            await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\nувеличил рейтинг\n[{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id}) *{checkRate.rate}* 🆙", parseMode: ParseMode.Markdown);
-                        }
-
-                        catch (InvalidOperationException)
-                        {
-                            // Если пользователь не найден, добавляем его в бд и даем 1 рейтинга
-                            Rating.Rates.Add(NewRating);
-                            Rating.SaveChanges();
-
-                            await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId})\nувеличил рейтинг\n[{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id}) *1* 🆙", parseMode: ParseMode.Markdown);
-
-                        }
-                    }
-
-                }
-
-                if (ChatId == 1382946157 && MessageText.Substring(0, 9) == "Добавить:") // TODO: поставить свой id
+                if (ChatId == 1234567890 && MessageText.Substring(0, 9) == "Добавить:") // TODO: поставить свой id
                 {
                     // Добавляем новые слова в бд для таблицы "секретных слов"
                     var DeleteFirstWord = MessageText.Remove(0, 9);
-                    String[] DropString = DeleteFirstWord.Split(new char[] { ' ', ',', '|' }, StringSplitOptions.RemoveEmptyEntries); // Удалить все ненужные элементы во вхождной строке
+                    String[] DropString = DeleteFirstWord.Split(new char[] { ' ', ',', '|' }, StringSplitOptions.RemoveEmptyEntries); // Удалить все ненужные элементы во входной строке
 
                     using (var AddsecretWords = new DataBaseBot())
                     {
 
                         foreach (var ScrollWords in DropString)
                         {
-                            var secret = new SecretWords()
+                            var secret = new MessagesAndRating.SecretWordTable()
                             {
                                 words = ScrollWords
                             };
-                            AddsecretWords.secretWords.Add(secret);
+                            AddsecretWords.SecretWordTables.Add(secret);
                             AddsecretWords.SaveChanges();
                             await botClient.SendTextMessageAsync(ChatId, ScrollWords);
                         }
                     }
                 }
 
-            } catch { }
-
-            try
-            {
-                var admin = botClient.GetChatMemberAsync(ChatId, UserId).Result; // Информация об одном из участников чата
-
-                if (MessageText == "Бан" && admin.CanDeleteMessages == true && ReplyMessage != null ||
-                    MessageText == "Бан" && admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
-                {
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}) забанил участника [{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id})", parseMode: ParseMode.Markdown);
-                    await botClient.KickChatMemberAsync(ChatId, userId: ReplyMessage.From.Id); // бан пользователЮ, которому был реплай
-                }
-
-                else if (MessageText == "Бан" && admin.Status != ChatMemberStatus.Administrator && ReplyMessage != null)
-                {
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}), ах ты жопа хитрая\nНизя так :)", replyToMessageId: MessageId, parseMode: ParseMode.Markdown);
-                }
-
-
-                if (MessageText == "Мут" && admin.CanDeleteMessages == true && ReplyMessage != null ||
-                    MessageText == "Мут" && admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
-                {
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}) " +
-                    $"дал мут участнику [{ReplyMessage.From.FirstName}](tg://user?id={ReplyMessage.From.Id}) на 10 минут", parseMode: ParseMode.Markdown);
-                    await botClient.RestrictChatMemberAsync(ChatId, userId: ReplyMessage.From.Id,
-                    permissions: chatPermissions, untilDate: DateTime.UtcNow.AddMinutes(10)); // Мут пользователю на 10 минут которому был реплай 
-                }
-
-                if (MessageText == "Кик" && admin.CanDeleteMessages == true && ReplyMessage != null ||
-                    MessageText == "Кик" && admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
-                {
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}) " +
-                    $"кикнул участника [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id})", parseMode: ParseMode.Markdown);
-                    await botClient.KickChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id); // Бан пользователю, которому был реплай
-                    await botClient.UnbanChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id);// Разбан того же пользователя
-                }
-
-                if (MessageText == "Опрос" && admin.CanPromoteMembers == true ||
-                    MessageText == "Опрос" && admin.Status == ChatMemberStatus.Creator)
-                {
-                    await botClient.SendPollAsync(ChatId, question: "Как проходит ваш день?",
-                            options: new[]
-                            {
-                            "На работе",
-                            "Дома отдыхаю",
-                            "Пoгибаю от скуки"
-                            });
-                    await botClient.PinChatMessageAsync(ChatId, messageId: MessageId);
-                }
-
-                if (e.Message.Type == MessageType.Dice)
-                {
-                    await botClient.SendDiceAsync(ChatId, emoji: Emoji.Basketball, replyToMessageId: MessageId);
-                }
-                #region Give admin
-                if (admin.CanPromoteMembers == true && ReplyMessage != null ||
-                    admin.Status == ChatMemberStatus.Creator && ReplyMessage != null)
-                {
-                    switch (MessageText) // Управление правами администратора
-                    {
-                        case "Разрешить удаление":
-                            await botClient.SendTextMessageAsync(ChatId, $"[{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь может удалять сообщения и банить участников", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canDeleteMessages: true); break;
-
-                        case "Разрешить мут":
-                            await botClient.SendTextMessageAsync(ChatId, $"[{ReplyMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь может давать мут участникам чата", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canRestrictMembers: true); break;
-
-                        case "Разрешить закреп":
-                            await botClient.SendTextMessageAsync(ChatId, $"[{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь может закреплять сообщения", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canPinMessages: true); break;
-
-                        case "Разрешить инвайт":
-                            await botClient.SendTextMessageAsync(ChatId, $"[{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь может приглашать юзеров", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canInviteUsers: true); break;
-
-                        case "Дать админку":
-                            await botClient.SendTextMessageAsync(ChatId, $"[{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) теперь админ", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canRestrictMembers: true,
-                                   canDeleteMessages:  true,
-                                   canChangeInfo:      true,
-                                   canPinMessages:     true,
-                                   canInviteUsers:     true); break;
-
-                        case "Забрать админку":
-                            await botClient.SendTextMessageAsync(ChatId, $"У [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) забрали админку :(", parseMode: ParseMode.Markdown);
-                            await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id,
-                                   canRestrictMembers: false,
-                                   canDeleteMessages:  false,
-                                   canChangeInfo:      false,
-                                   canPinMessages:     false,
-                                   canInviteUsers:     false,
-                                   canPostMessages:    false); break;
-                    }
-                }
             }
             catch { }
-            #endregion
+
             try
             {
-                if (DateTime.Now.Hour >= 2 && DateTime.Now.Hour < 8)
+                var admin = botClient.GetChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id).Result; // инфорамация про участника, которому был реплай
+
+                if (MessageText == "Права" && ReplyMessage != null && admin.Status == ChatMemberStatus.Administrator) // Проверять права администраторов
                 {
 
-                    await botClient.SetChatPermissionsAsync(ChatId, permissions: Permissions_during_restrict); // Ограничения в ночное время
-                }
-
-                else if (DateTime.Now.Hour >= 8 && DateTime.Now.Hour <= 1)
-                {
-
-                    await botClient.SetChatPermissionsAsync(ChatId, permissions: Permissions_after_restrict); // Снятие ограничений
-                }
-
-                else if (ChatId == 1382946157) // TODO: Поставить необходимый Id
-                {
-                    await botClient.SendTextMessageAsync(ChatId, MessageText);                // Написать от имени бота в конкретный чат
+                    await botClient.SendTextMessageAsync(ChatId, $"*{admin.Status}* [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) может:" +
+                        $"\nУдалять сообщения: *{admin.CanDeleteMessages}*" +
+                        $"\nЗакреплять сообщения: *{admin.CanPinMessages}*" +
+                        $"\nДобавлять администрацию: *{admin.CanPromoteMembers}*" +
+                        $"\nОграничивать/банить пользователей: *{admin.CanRestrictMembers}*" +
+                        $"\nИзменять описание группы: *{admin.CanChangeInfo}*" +
+                        $"\nПриглашать людей: *{admin.CanInviteUsers}*", parseMode: ParseMode.Markdown);
                 }
 
                 else if (MessageText == "Фото")
@@ -692,68 +192,42 @@ namespace Telegram_chat_bot
             }
             catch { }
 
-            try
-            {
-                var admin = botClient.GetChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id).Result; // инфорамация про участника, которому был реплай
-
-                if (MessageText == "!админ" && ReplyMessage != null)    // Отправка жалобы на сообщение админу в лс
-                {
-                    await botClient.SendTextMessageAsync(chatId: 1382946157, $"[{FirstName}](tg://user?id={UserId})" +
-                        $" пожаловался на сообщение: *''{e.Message.ReplyToMessage.Text}''*\n" +
-                        $" участника: [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id})",
-                        parseMode: ParseMode.Markdown); // TODO: Id админа
-                }
-
-                else if (MessageText == "Права" && ReplyMessage != null && admin.Status == ChatMemberStatus.Administrator) // Проверять права администраторов
-                {
-
-                    await botClient.SendTextMessageAsync(ChatId, $"*{admin.Status}* [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) может:" +
-                        $"\nУдалять сообщения: *{admin.CanDeleteMessages}*" +
-                        $"\nЗакреплять сообщения: *{admin.CanPinMessages}*" +
-                        $"\nДобавлять администрацию: *{admin.CanPromoteMembers}*" +
-                        $"\nОграничивать пользователей: *{admin.CanRestrictMembers}*" +
-                        $"\nИзменять описание группы: *{admin.CanChangeInfo}*" +
-                        $"\nПриглашать людей: *{admin.CanInviteUsers}*", parseMode: ParseMode.Markdown);
-                }
-
-                if (MessageText.Substring(0, 2) == ".н" && admin.CanPromoteMembers == true && ReplyMessage != null ||
-                    MessageText.Substring(0, 2) == ".н" && admin.Status == ChatMemberStatus.Creator && ReplyMessage != null) // Метод для выдачи надписи участнику( так жедает админ права к пригласительной ссылке)
-                {
-
-                    await botClient.PromoteChatMemberAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id, canInviteUsers: true);
-                    await botClient.SetChatAdministratorCustomTitleAsync(ChatId, userId: e.Message.ReplyToMessage.From.Id, $"{MessageText.Remove(0, 2)}");
-                    await botClient.SendTextMessageAsync(ChatId, $"Теперь [{e.Message.ReplyToMessage.From.FirstName}](tg://user?id={e.Message.ReplyToMessage.From.Id}) *{MessageText.Remove(0, 2)}*", parseMode: ParseMode.Markdown);
-
-                }
-
-            }
-            catch { }
-
             try {
 
-                if (MessageText == "/") // Игра "крокодил"
+                if (MessageText == "Стат" || MessageText == "/mystat@terpilla_bot" || MessageText == "/mystat" && ChatId != UserId)
                 {
-                    using (StreamWriter Record_Id = new StreamWriter(Path_Id, false, System.Text.Encoding.UTF8))
+                    using (var context = new DataBaseBot())
                     {
-                        Record_Id.WriteLine(Line_Id);
-                    }
+                        var group = new MessagesAndRating.RatingTable()
+                        {
+                            FirstName = e.Message.From.FirstName,
+                            UserId = e.Message.From.Id
+                        };
 
-                    var inline = new InlineKeyboardMarkup(new[]
-                    {
-                    new[]
-                    {
-                        InlineKeyboardButton.WithCallbackData("Первое слово")
-                    },
+                        var count = new MessagesAndRating.CountMessageTable()
+                        {
+                            FirstName = e.Message.From.FirstName,
+                            UserId = e.Message.From.Id
+                        };
 
-                    new[]
-                    {
-                       InlineKeyboardButton.WithCallbackData("Завершить игру")
+                        try
+                        {
+                            var counter = context.CountMessageTables.Single(x => x.UserId == count.UserId);
+                            var s = context.RatingTables.Single(x => x.UserId == group.UserId);
+                            await botClient.SendTextMessageAsync(chatId: e.Message.Chat,
+                            text: $"[{FirstName}](tg://user?id={UserId})\nID чата: *{ChatId}*\nВсего сообщений в чате : " +
+                            $" *{e.Message.MessageId}*\nТвой рейтинг: *{s.rate}* 🆙\nТвои сообщения по всем чатам: *{counter.Counter}* ✉️\n" +
+                            $"Твое звание: *{counter.rank}*\nДата: *{e.Message.Date}* (UTC + 3 часа)"
+                            , parseMode: ParseMode.Markdown).ConfigureAwait(false);
+                        }
+                        catch (InvalidOperationException)
+                        { await botClient.SendTextMessageAsync(chatId: e.Message.Chat, $"[{FirstName}](tg://user?id={UserId}), для показа статистики у тебя должен быть рейтинг", parseMode: ParseMode.Markdown); }
+
+
                     }
-                }); // создание трех кнопок(три строки)
-                    await botClient.SendTextMessageAsync(ChatId, $"[{FirstName}](tg://user?id={UserId}), твой черед объяснять слово", parseMode: ParseMode.Markdown, replyMarkup: inline);
                 }
 
-                else if (MessageText == "/") // Инструкция к боту
+                if (MessageText == "/help@terpilla_bot" || MessageText == "/help") // Инструкция к боту
                 {
                     var choose = new InlineKeyboardMarkup(new[]
                     {
@@ -779,11 +253,7 @@ namespace Telegram_chat_bot
                     string answer_pm = responsed.Result.Fulfillment.Speech;// Получаем ответ от DialogFlow
                     await botClient.SendTextMessageAsync(chatId: e.Message.From.Id, answer_pm, replyToMessageId: MessageId);
                 }
-            }
-            catch { }
 
-            try
-            {
                 if (e.Message.Type == MessageType.Text) //проверка триггеров для общения в чате
                 {
                     var responsed_1 = apiAi_for_chat.TextRequest(MessageText);
@@ -793,47 +263,6 @@ namespace Telegram_chat_bot
             }
             catch { }
 
-            try
-            {
-                if (e.Message.Type == MessageType.Text &&
-                    MessageText.Equals(RightWord.SaveReturnWord(), StringComparison.CurrentCultureIgnoreCase) &&
-                    UserId != Right_Id) // Проверка правильности слова для игры
-                {
-                    await botClient.SendTextMessageAsync(ChatId, text: $"[{FirstName}](tg://user?id={UserId}), ты выиграл\n" +
-                    $"Правильное слово - {RightWord.SaveReturnWord()}", parseMode: ParseMode.Markdown, replyToMessageId: e.Message.MessageId);
-
-                    var NewInline = new InlineKeyboardMarkup(new[]
-                    {
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData("Хочу быть ведущим")
-                        },
-                        });
-                    await botClient.SendTextMessageAsync(chatId: e.Message.Chat, "Кто будет играть?", replyMarkup: NewInline);
-                }
-            }
-            catch { }
-
-            try
-            {
-                switch (MessageText)
-                {
-                    case "Йожик":
-                        await botClient.SendVideoAsync(chatId: e.Message.Chat, video: VideoFile,
-                        caption: "Тссс, только никому :)", replyToMessageId: MessageId); break;
-
-                    case "/start":
-                        await botClient.SendTextMessageAsync(chatId: e.Message.Chat,
-                        text: "Приветствую тебя. Хочешь поговорить со мной? :)").ConfigureAwait(false); break;
-
-                    case "Стат":
-                        await botClient.SendTextMessageAsync(chatId: e.Message.Chat,
-                        text: $"ID чата: {e.Message.Chat.Id}\nCообщений в чате : " +
-                        $" {e.Message.MessageId}\nДата: {DateTime.Now} по МСК").ConfigureAwait(false); break;
-
-                }
-            }
-            catch { }
             string name = $"{FirstName} ({e.Message.From.Username})";
             Console.WriteLine($"{name} написал : {MessageText}");
         }

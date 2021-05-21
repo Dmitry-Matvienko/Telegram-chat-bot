@@ -12,4 +12,28 @@
     <PackageReference Include="Telegram.Bot" Version="15.7.1" />
   </ItemGroup>
 
+<ItemGroup>
+<Content Update="id.txt">
+ <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+</Content>
+</ItemGroup>
+
+<ItemGroup>
+<Content Update="words.txt">
+ <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+</Content>
+</ItemGroup>
+
+<ItemGroup>
+<Content Update="admins.txt">
+ <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+</Content>
+</ItemGroup>
+
+<ItemGroup>
+<Content Update="users.txt">
+ <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+</Content>
+</ItemGroup>
+
 </Project>
